@@ -2,6 +2,8 @@
 
 Türkçe açıklamalar ve İngilizce kod örnekleriyle, A4 yatay baskıya uygun Rust çalışma notları. HTML dosyaları CSS ve çizimleri kendi içinde barındırır; kurulum gerektirmez.
 
+**[Cheat sheet’i tarayıcıda aç](https://saadettinberber.github.io/rust-cheat-sheet/)** · [Yalnızca ownership](https://saadettinberber.github.io/rust-cheat-sheet/rust-ownership-a4.html)
+
 ## Dosyalar
 
 | Dosya | Kapsam | Sayfa |
@@ -15,11 +17,14 @@ Ownership çizimleri, kodda işaretlenen L1–L4 anlarında değerleri ve sahipl
 
 ## Kullanım
 
-1. Repoyu indirin veya klonlayın.
-2. İstediğiniz HTML dosyasını tarayıcıda açın.
-3. **Yazdır / PDF kaydet** düğmesini kullanın.
+1. [Canlı sayfayı](https://saadettinberber.github.io/rust-cheat-sheet/) açın; dosya indirmeniz gerekmez.
+2. İsterseniz **Yazdır / PDF kaydet** düğmesini kullanın.
+
+Çevrimdışı kullanım için repoyu indirip veya klonlayıp istediğiniz HTML dosyasını tarayıcıda açabilirsiniz.
 
 Baskı için A4, yatay yön ve %100 ölçek seçin. Tarayıcının üstbilgi ve altbilgilerini kapatın; renkli kutular için arka plan grafikleri seçeneğini açın. Sayfa ölçüleri 297 × 210 mm olarak sabittir. Dar ekranlarda yatay kaydırma kullanılabilir.
+
+GitHub Pages, `main` dalının kök dizininden yayımlanır. Bu dala gönderilen güncellemeler otomatik olarak siteye yansır.
 
 ## Kaynaklar
 
