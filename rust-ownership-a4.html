@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Rust · Ownership — A4 Cheat Sheet</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #243044;
+      --muted: #5e6877;
+      --paper: #fff;
+      --line: #e0e5eb;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #e9edf2; color: var(--ink); font-family: Arial, Helvetica, sans-serif; }
+    a { color: #2859a6; text-underline-offset: 3px; }
+    button { font: inherit; cursor: pointer; }
+    .toolbar { max-width: 297mm; margin: 23px auto 15px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 2px; }
+    .toolbar-title { font-size: 14px; font-weight: 700; }
+    .toolbar-note { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .print-button { flex-shrink: 0; border: 0; border-radius: 7px; background: #243044; color: white; padding: 12px 18px; font-size: 13px; font-weight: 700; }
+    .print-button:hover { background: #3a4a63; }
+    .print-button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid #df7d36; outline-offset: 4px; }
+    .paper-viewport { overflow-x: auto; padding: 8px 18px 22px; }
+    /* A4 yatay. İçerik arttığında yeni bir .sheet ekle; sayfayı esnetme. */
+    .sheet { width: 297mm; height: 210mm; padding: 8mm 9mm 6mm; margin: 0 auto; background: var(--paper); box-shadow: 0 6px 24px #2430441a; display: flex; flex-direction: column; }
+    .sheet + .sheet { margin-top: 22px; }
+    .masthead { display: flex; justify-content: space-between; align-items: flex-end; gap: 8mm; padding-bottom: 4mm; border-bottom: 0.6mm solid var(--ink); }
+    .eyebrow { margin: 0 0 1.7mm; font-size: 7pt; font-weight: 700; letter-spacing: 1.6px; color: #a4452a; }
+    h1 { margin: 0; font-size: 25pt; letter-spacing: -1.2px; line-height: 1.06; font-weight: 800; }
+    h1 span { font-weight: 400; color: #5e6877; font-size: 19pt; letter-spacing: -0.6px; }
+    .header-note { margin: 0 0 0.5mm; max-width: 74mm; font-size: 8pt; line-height: 1.5; color: var(--muted); text-align: right; }
+    .columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5mm; padding-top: 4mm; flex: 1; min-height: 0; }
+    .column { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 2.8mm; }
+    .topic { --accent: #c65030; --tint: #fff2eb; border-top: 0.8mm solid var(--accent); background: #fafbfc; break-inside: avoid; }
+    .topic.teal { --accent: #14796d; --tint: #eaf6f3; }
+    .topic.blue { --accent: #2859a6; --tint: #edf3fc; }
+    .topic.purple { --accent: #7253a5; --tint: #f3effa; }
+    .topic.amber { --accent: #946112; --tint: #fbf4e3; }
+    .topic.rose { --accent: #ad3e5f; --tint: #fceff4; }
+    .topic-heading { padding: 1.7mm 2.6mm 1.5mm; background: var(--tint); }
+    h2 { display: flex; align-items: baseline; gap: 2mm; margin: 0; color: var(--accent); font-size: 12pt; line-height: 1.15; letter-spacing: -0.2px; }
+    .section-no { font-size: 7pt; font-weight: 700; letter-spacing: 0.3px; }
+    .description { margin: 1.1mm 0 0; color: var(--ink); font-size: 7.8pt; line-height: 1.37; }
+    .entry { padding: 1.3mm 2.6mm; border-top: 0.2mm solid #e4e8ed; }
+    .topic-heading + .entry { border-top: 0; }
+    h3 { margin: 0 0 1mm; font-size: 8pt; line-height: 1.2; font-weight: 700; }
+    h3 .translation { color: var(--muted); font-size: 7pt; font-weight: 400; }
+    code, pre { font-family: "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; font-variant-ligatures: none; }
+    pre { margin: 0; color: #283344; font-size: 7.9pt; line-height: 1.34; white-space: pre; tab-size: 4; }
+    p code, td code, h3 code, .tip code { font-size: 0.96em; }
+    .kw { color: #7545a1; font-weight: 700; }
+    .str { color: #176850; }
+    .num { color: #a64f17; }
+    .ty { color: #2859a6; }
+    .fn { color: #9d442c; }
+    .comment { color: #596777; font-style: italic; }
+    .tip { margin: 1mm 0 0; color: #4d596a; font-size: 7.2pt; line-height: 1.4; }
+    .note { margin: 0; padding: 1.4mm 2.6mm; background: var(--tint); font-size: 7.3pt; line-height: 1.4; }
+    .note strong { color: var(--accent); }
+    table { border-collapse: collapse; width: 100%; font-size: 7.6pt; line-height: 1.4; }
+    th { color: var(--muted); font-size: 6.8pt; font-weight: 700; text-align: left; padding: 0 0 1mm; }
+    td { padding: 0.65mm 0; vertical-align: top; border-top: 0.2mm solid #e4e8ed; }
+    td:last-child { padding-left: 2mm; }
+    .cargo td:first-child { width: 39mm; }
+    .types td:first-child { width: 19mm; color: #2859a6; }
+    .types td:nth-child(2) { width: 27mm; }
+    .types td:last-child { padding-left: 1mm; color: var(--muted); }
+    .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 3mm; padding-top: 2mm; border-top: 0.25mm solid var(--line); font-size: 6.8pt; line-height: 1.3; color: var(--muted); }
+    .footer strong { letter-spacing: 0.5px; color: var(--ink); }
+    .footer a { color: inherit; }
+    .references { width: min(297mm, calc(100% - 36px)); margin: 0 auto 30px; color: #4d596a; font-size: 13px; line-height: 1.7; }
+    .references summary { cursor: pointer; font-weight: 700; color: var(--ink); }
+    .references ul { padding-left: 22px; }
+    .references p { max-width: 860px; }
+    .references a { margin-right: 3px; }
+    @media (max-width: 1160px) { .toolbar { margin-left: 18px; margin-right: 18px; } .sheet { margin: 0; } }
+    @media (max-width: 520px) { .toolbar { align-items: flex-start; } .toolbar-note { max-width: 200px; } .print-button { padding: 12px; } }
+    @page { size: A4 landscape; margin: 0; }
+    @media print {
+      html, body { margin: 0 !important; padding: 0 !important; background: white; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .toolbar, .references { display: none !important; }
+      .paper-viewport { overflow: visible; padding: 0; }
+      .sheet, .sheet + .sheet { margin: 0; box-shadow: none; break-after: page; page-break-after: always; }
+      .sheet:last-child { break-after: auto; page-break-after: auto; }
+    }
+    .memory-table td:first-child { width: 24mm; white-space: nowrap; }
+    .memory-table td { padding-top: 1mm; padding-bottom: 1mm; }
+    .memory-diagram { display: grid; grid-template-columns: 1.2fr 5mm 1fr; align-items: end; gap: 1.2mm; margin: 2mm 0; font-size: 7.3pt; }
+    .memory-side small { display: block; margin-bottom: 1.4mm; font-size: 6.5pt; letter-spacing: 0.5px; color: var(--muted); }
+    .memory-moved, .memory-owner, .memory-heap { padding: 1.8mm 2mm; }
+    .memory-moved { margin-bottom: 1mm; background: #eceff3; color: #5e6877; }
+    .memory-moved code { text-decoration: line-through; }
+    .memory-moved span, .memory-owner span { margin-left: 1.4mm; }
+    .memory-owner { background: #e0f0ea; color: #165b4e; border: 0.25mm solid #a4ccc0; }
+    .memory-arrow { padding-bottom: 2mm; font-size: 14pt; text-align: center; color: #14796d; }
+    .memory-heap { background: #e0f0ea; border: 0.25mm solid #a4ccc0; }
+    .memory-heap span { display: block; margin-top: 1mm; font-size: 6.8pt; color: #165b4e; }
+    .compile-error { color: #ad3e5f; }
+    .string-diagram { margin: 1.5mm 0; }
+    .string-fields { display: grid; grid-template-columns: 1fr 1fr 1.6fr; font-size: 7.8pt; }
+    .string-fields span { padding: 1.6mm 2mm; text-align: center; background: #fbf0d6; border: 0.2mm solid #dfc79c; }
+    .string-fields span + span { border-left: none; }
+    .string-buffer { padding: 1.5mm 0 0; font-size: 7.1pt; color: #735019; }
+    .owner-flow { display: flex; align-items: baseline; justify-content: space-between; gap: 1mm; padding: 2mm 0 0.8mm; font-size: 7pt; color: #ad3e5f; }
+    .owner-flow code { font-size: 8pt; font-weight: 700; }
+
+    .ow-body { display: flex; flex-direction: column; gap: 3mm; padding-top: 4mm; flex: 1; min-height: 0; }
+    .ow-sheet pre { font-size: 8.3pt; line-height: 1.35; }
+    .ow-sheet h2 { font-size: 12pt; line-height: 1.25; }
+    .ow-sheet h3 { font-size: 9pt; margin-bottom: 1.5mm; }
+    .ow-sheet p { font-size: 8.5pt; line-height: 1.42; }
+    .ow-sheet .eyebrow { font-size: 7pt; }
+    .ow-sheet .header-note { font-size: 8pt; }
+    .ow-sheet .ow-small { font-size: 7.6pt; line-height: 1.4; }
+    .ow-sheet .ow-intro { margin: 0; color: #526075; }
+    .ow-top { display: grid; grid-template-columns: 108mm 1fr; gap: 5mm; align-items: stretch; }
+    .ow-code-panel { padding: 2.5mm 3mm; background: #f5f7fb; border-top: 0.8mm solid #7253a5; }
+    .ow-code-panel h3 { color: #7253a5; }
+    .ow-code-panel pre { margin: 0; }
+    .ow-read { padding: 1.8mm 0; }
+    .ow-read h2 { color: #2859a6; margin: 0 0 2mm; }
+    .ow-read p { margin: 0 0 2mm; }
+    .ow-defs { display: grid; grid-template-columns: 22mm 1fr; gap: 1.5mm 2mm; margin: 0; font-size: 8.5pt; line-height: 1.4; }
+    .ow-defs dt { font-weight: 700; color: #2859a6; }
+    .ow-defs dd { margin: 0; }
+    .ow-section-line { display: flex; align-items: baseline; justify-content: space-between; gap: 4mm; }
+    .ow-section-line h2 { margin: 0; }
+    .ow-section-line span { color: #5e6877; font-size: 7.6pt; }
+    .ow-stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4mm; }
+    .ow-stage { margin: 0; border: 0.25mm solid #d8e0ea; background: #fcfdff; min-width: 0; }
+    .ow-stage-head { display: flex; align-items: center; gap: 2mm; min-height: 7.5mm; padding: 1.5mm 2.3mm; background: #edf3fc; color: #2859a6; font-size: 9pt; font-weight: 700; }
+    .ow-stage-tag { font-family: Menlo, Consolas, monospace; color: white; background: #2859a6; padding: 0.6mm 1.4mm; font-size: 8pt; }
+    .ow-stage figcaption { padding: 1mm 2.5mm 2mm; font-size: 8pt; line-height: 1.4; min-height: 12mm; }
+    .ow-stage svg { width: 100%; height: auto; display: block; }
+    .ow-svg text { fill: #243044; font-family: Arial, Helvetica, sans-serif; font-size: 11px; }
+    .ow-svg .mono { font-family: Menlo, Consolas, monospace; }
+    .ow-svg .label { font-size: 10px; font-weight: 700; letter-spacing: 1px; fill: #5e6877; }
+    .ow-svg .frame-title { font-size: 11px; font-weight: 700; fill: #2859a6; }
+    .ow-svg .muted { fill: #6f7b8e; }
+    .ow-svg .live { fill: #14796d; }
+    .ow-svg .dead { fill: #ad3e5f; }
+    .ow-svg .small { font-size: 9px; }
+    .ow-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+    .ow-note-panel { background: #eaf6f3; border-top: 0.7mm solid #14796d; padding: 2.2mm 3mm; }
+    .ow-note-panel h3 { color: #14796d; }
+    .ow-note-panel p { margin: 0; }
+    .ow-note-panel.ow-rose { background: #fceff4; border-color: #ad3e5f; }
+    .ow-note-panel.ow-rose h3 { color: #ad3e5f; }
+    .ow-note-panel.ow-amber { background: #fbf4e3; border-color: #946112; }
+    .ow-note-panel.ow-amber h3 { color: #946112; }
+    .ow-code-and-note { display: grid; grid-template-columns: 1fr 1.05fr; gap: 3mm; align-items: center; }
+    .ow-code-and-note p { font-size: 8pt; }
+    .ow-strip { display: flex; align-items: center; gap: 3mm; padding: 2mm 3mm; background: #f1f4f8; font-size: 8pt; line-height: 1.4; }
+    .ow-strip strong { color: #2859a6; white-space: nowrap; }
+    .ow-string-top { grid-template-columns: 132mm 1fr; }
+    .ow-string-top pre { font-size: 8pt; line-height: 1.3; }
+    .ow-string-stages { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2.5mm 4mm; }
+    .ow-string-stages .ow-stage-head { min-height: 6mm; padding: 1mm 2.3mm; font-size: 8.5pt; }
+    .ow-string-stages .ow-stage-tag { font-size: 7.5pt; }
+    .ow-string-stages .ow-stage { background: #fff; }
+    .ow-string-bottom { display: grid; grid-template-columns: 1fr 1fr 1.1fr; gap: 3mm; }
+    .ow-string-bottom .ow-note-panel { padding: 2mm 2.5mm; }
+    .ow-string-bottom p { font-size: 7.7pt; }
+    .ow-string-bottom h3 { font-size: 8.6pt; }
+    .ow-stage-source { margin: 0; color: #5e6877; font-size: 7.5pt !important; }
+    .ow-legend { display: flex; flex-wrap: wrap; gap: 3mm; margin-top: 2.5mm; font-size: 7.6pt; }
+    .ow-legend span { display: inline-flex; gap: 1mm; align-items: center; }
+    .ow-legend i { display: inline-block; width: 3mm; height: 3mm; background: #e1f2eb; border: 0.25mm solid #71a593; }
+    .ow-legend i.ow-grey { background: #eceff3; border-color: #aab3c2; }
+    .ow-legend i.ow-blue { background: #edf3fc; border-color: #7b9dcc; }
+    .ow-signal { font-weight: 700; color: #2859a6; }
+
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <div>
+      <div class="toolbar-title">Rust cheat sheet · Ownership / 3 sayfa</div>
+      <div class="toolbar-note">A4 yatay · 297 × 210 mm · Yazdırırken ölçek %100, üst ve alt bilgiler kapalı.</div>
+    </div>
+    <button class="print-button" type="button" onclick="window.print()">Yazdır / PDF kaydet</button>
+  </div>
+  <main class="paper-viewport">
+<article class="sheet ownership-sheet ow-sheet" aria-label="Ownership sayfa 1, Stack ve değerler">
+<header class="masthead"><div><p class="eyebrow">KİŞİSEL RUST NOTLARI / 03 · OWNERSHIP 1/3</p><h1>Rust <span>/ Stack ve değerler</span></h1></div><p class="header-note">Çağrıdan önce, çağrı sırasında, dönüşte.<br>Brown · 4.1 · Collections Use Boxes dahil</p></header><div class="ow-body">
+<div class="ow-top"><section class="ow-code-panel"><h3>Örnek / L1 → L2 → L3</h3><pre data-rust="program" data-output="5 6\n"><code><span class="kw">fn</span> increment(value: <span class="ty">i32</span>) -&gt; <span class="ty">i32</span> {
+    <span class="kw">let</span> result = value + <span class="num">1</span>; <span class="comment">// L2</span>
+    result
+}
+<span class="kw">fn</span> main() {
+    <span class="kw">let</span> number = <span class="num">5</span>; <span class="comment">// L1</span>
+    <span class="kw">let</span> next = increment(number); <span class="comment">// L3</span>
+    println!(<span class="str">&quot;{number} {next}&quot;</span>);
+}</code></pre></section>
+<section class="ow-read"><h2>Bellek resmini nasıl okuyacağız?</h2><dl class="ow-defs"><dt>Frame</dt><dd>Bir fonksiyon çağrısının yerel bağlamalarını gösteren kutu. Çağrı başlar, frame eklenir; çağrı biter, kaldırılır.</dd><dt>Stack</dt><dd>Etkin çağrıların frame’leri. Burada en yeni çağrıyı üstte çiziyoruz; ilk o döner.</dd><dt>Heap</dt><dd>Bir fonksiyon frame’ine bağlı olmadan yaşayabilen ayrılan alanlar. Sonraki sayfada Box ile göreceğiz.</dd></dl><p class="ow-small" style="margin-top:2.5mm"><span class="ow-signal">L1–L3</span>, kodda işaretlenen satır tamamlandıktan sonraki anı gösterir. <code>number</code> ve <code>value</code> ayrı bağlamalardır.</p></section></div>
+<div class="ow-section-line"><h2>Bir fonksiyon çağrısının üç anı</h2><span>Akış: soldan sağa →</span></div>
+<div class="ow-stages">
+<figure class="ow-stage"><div class="ow-stage-head"><b class="ow-stage-tag">L1</b>Çağrıdan önce</div><svg class="ow-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 195" role="img" aria-labelledby="title-stack-L1 desc-stack-L1">
+    <title id="title-stack-L1">stack-L1</title><desc id="desc-stack-L1">Çağrı öncesi main içinde number 5.</desc>
+    <defs><marker id="arrow-stack-L1" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7 Z" fill="#14796d"/></marker></defs><text x="9" y="18" class="label" text-anchor="start">STACK</text><text x="212" y="18" class="label" text-anchor="start">HEAP</text><rect x="9" y="126" width="167" height="51" rx="2" fill="#f5f8fd" stroke="#b8c9df" stroke-width="1"/><rect x="9" y="126" width="167" height="22" rx="2" fill="#e8f0fc" stroke="#b8c9df" stroke-width="1"/><text x="17" y="141" class="frame-title" text-anchor="start">main</text><rect x="15" y="151" width="155" height="21" rx="2" fill="#fff" stroke="#d8e0ea" stroke-width="1"/><text x="21" y="165" class="mono" text-anchor="start">number</text><text x="164" y="165" class="mono" text-anchor="end">5</text><text x="12" y="47" class="muted" text-anchor="start">Çağrı henüz yapılmadı.</text><rect x="211" y="30" width="100" height="151" rx="2" fill="#fafbfd" stroke="#d8e0ea" stroke-width="1" stroke-dasharray="4 3"/><text x="261" y="95" class="muted" text-anchor="middle">Bu örnekte</text><text x="261" y="111" class="muted" text-anchor="middle">heap verisi yok</text></svg><figcaption>Yalnızca <code>main</code> etkin. <code>number = 5</code>.</figcaption></figure>
+<figure class="ow-stage"><div class="ow-stage-head"><b class="ow-stage-tag">L2</b>Fonksiyon çalışırken</div><svg class="ow-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 195" role="img" aria-labelledby="title-stack-L2 desc-stack-L2">
+    <title id="title-stack-L2">stack-L2</title><desc id="desc-stack-L2">increment içinde value 5 ve result 6. main içinde number 5; next henüz başlatılmadı.</desc>
+    <defs><marker id="arrow-stack-L2" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7 Z" fill="#14796d"/></marker></defs><text x="9" y="18" class="label" text-anchor="start">STACK</text><text x="212" y="18" class="label" text-anchor="start">HEAP</text><rect x="9" y="29" width="167" height="76" rx="2" fill="#f5f8fd" stroke="#b8c9df" stroke-width="1"/><rect x="9" y="29" width="167" height="22" rx="2" fill="#e8f0fc" stroke="#b8c9df" stroke-width="1"/><text x="17" y="44" class="frame-title" text-anchor="start">increment · aktif</text><rect x="15" y="54" width="155" height="21" rx="2" fill="#fff" stroke="#d8e0ea" stroke-width="1"/><text x="21" y="68" class="mono" text-anchor="start">value</text><text x="164" y="68" class="mono" text-anchor="end">5</text><rect x="15" y="79" width="155" height="21" rx="2" fill="#fff" stroke="#d8e0ea" stroke-width="1"/><text x="21" y="93" class="mono" text-anchor="start">result</text><text x="164" y="93" class="mono" text-anchor="end">6</text><rect x="9" y="126" width="167" height="51" rx="2" fill="#f3f4f6" stroke="#b8c9df" stroke-width="1"/><rect x="9" y="126" width="167" height="22" rx="2" fill="#e8ecf1" stroke="#b8c9df" stroke-width="1"/><text x="17" y="141" class="frame-title" text-anchor="start">main · bekliyor</text><rect x="15" y="151" width="155" height="21" rx="2" fill="#fff" stroke="#d8e0ea" stroke-width="1"/><text x="21" y="165" class="mono" text-anchor="start">number</text><text x="164" y="165" class="mono" text-anchor="end">5</text><text x="9" y="117" class="small muted" text-anchor="start">next henüz değer almadı.</text><rect x="211" y="30" width="100" height="151" rx="2" fill="#fafbfd" stroke="#d8e0ea" stroke-width="1" stroke-dasharray="4 3"/><text x="261" y="95" class="muted" text-anchor="middle">Bu örnekte</text><text x="261" y="111" class="muted" text-anchor="middle">heap verisi yok</text></svg><figcaption><code>value</code>, 5’in kopyasını aldı. <code>result = 6</code> fonksiyonun yerel değeridir.</figcaption></figure>
+<figure class="ow-stage"><div class="ow-stage-head"><b class="ow-stage-tag">L3</b>Dönüşten sonra</div><svg class="ow-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 195" role="img" aria-labelledby="title-stack-L3 desc-stack-L3">
+    <title id="title-stack-L3">stack-L3</title><desc id="desc-stack-L3">increment frame kaldırıldı. main içinde number 5 ve next 6.</desc>
+    <defs><marker id="arrow-stack-L3" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7 Z" fill="#14796d"/></marker></defs><text x="9" y="18" class="label" text-anchor="start">STACK</text><text x="212" y="18" class="label" text-anchor="start">HEAP</text><rect x="9" y="101" width="167" height="76" rx="2" fill="#f5f8fd" stroke="#b8c9df" stroke-width="1"/><rect x="9" y="101" width="167" height="22" rx="2" fill="#e8f0fc" stroke="#b8c9df" stroke-width="1"/><text x="17" y="116" class="frame-title" text-anchor="start">main</text><rect x="15" y="126" width="155" height="21" rx="2" fill="#fff" stroke="#d8e0ea" stroke-width="1"/><text x="21" y="140" class="mono" text-anchor="start">number</text><text x="164" y="140" class="mono" text-anchor="end">5</text><rect x="15" y="151" width="155" height="21" rx="2" fill="#fff" stroke="#d8e0ea" stroke-width="1"/><text x="21" y="165" class="mono" text-anchor="start">next</text><text x="164" y="165" class="mono" text-anchor="end">6</text><rect x="9" y="30" width="167" height="51" rx="2" fill="#fafbfd" stroke="#c4ccda" stroke-width="1" stroke-dasharray="4 3"/><text x="92" y="50" class="muted" text-anchor="middle">increment döndü</text><text x="92" y="66" class="small muted" text-anchor="middle">frame kaldırıldı</text><rect x="211" y="30" width="100" height="151" rx="2" fill="#fafbfd" stroke="#d8e0ea" stroke-width="1" stroke-dasharray="4 3"/><text x="261" y="95" class="muted" text-anchor="middle">Bu örnekte</text><text x="261" y="111" class="muted" text-anchor="middle">heap verisi yok</text></svg><figcaption><code>6</code> döndü ve <code>next</code> başlatıldı. <code>number</code> hâlâ 5.</figcaption></figure>
+</div>
+<div class="ow-bottom">
+<section class="ow-note-panel "><h3>Copy: bağımsız iki değer</h3><div class="ow-code-and-note"><pre data-rust="body" data-output="5 8\n"><code><span class="kw">let</span> a = <span class="num">5</span>;
+<span class="kw">let</span> <span class="kw">mut</span> b = a;
+b += <span class="num">3</span>;
+println!(<span class="str">&quot;{a} {b}&quot;</span>); <span class="comment">// 5 8</span></code></pre><p><code>i32</code> tipi <code>Copy</code> olduğu için <code>b</code> ayrı bir değer alır. <code>b</code> değişince <code>a</code> değişmez.</p></div></section>
+<section class="ow-note-panel ow-amber"><h3>Önemli ayrım</h3><p><code>Copy</code>, bir <strong>tip özelliğidir</strong>; “stack’te olan her şey kopyalanır” kuralı yoktur. <code>String</code> ve <code>Box&lt;T&gt;</code> değerle aktarılırken taşınır.</p><p class="ow-small" style="margin-top:2mm">Bu modeldeki kutular gerçek bellek adresleri değildir. Derleyici değerleri register’da tutabilir veya işlemleri optimize edebilir.</p></section>
+</div></div>
+<footer class="footer"><span><strong>RUST / 03</strong> &nbsp; Ownership 1/3</span><span>Şemalar kavramsaldır. Frame’ler fiziksel register/stack yerleşimi garantisi vermez.</span><a href="https://rust-book.cs.brown.edu/ch04-01-what-is-ownership.html#collections-use-boxes">Brown · What Is Ownership?</a></footer></article>
+<article class="sheet ownership-sheet ow-sheet" aria-label="Ownership sayfa 2, Box, move ve drop">
+<header class="masthead"><div><p class="eyebrow">KİŞİSEL RUST NOTLARI / 04 · OWNERSHIP 2/3</p><h1>Rust <span>/ Box, move ve drop</span></h1></div><p class="header-note">Tek ayrılan alanın sahibini takip et.<br>Brown · 4.1 · Collections Use Boxes dahil</p></header><div class="ow-body">
+<div class="ow-top"><section class="ow-code-panel"><h3>Örnek / sahiplik a → b</h3><pre data-rust="program" data-output="2\n"><code><span class="kw">fn</span> main() {
+    <span class="kw">let</span> a = <span class="ty">Box</span>::new([<span class="num">2</span>, <span class="num">4</span>, <span class="num">6</span>]); <span class="comment">// L1</span>
+    {
+        <span class="kw">let</span> b = a; <span class="comment">// L2</span>
+        println!(<span class="str">&quot;{}&quot;</span>, b[<span class="num">0</span>]);
+    } <span class="comment">// L3: b is dropped</span>
+}</code></pre></section><section class="ow-read"><h2>Box değeri ile içindeki veriyi ayır</h2><p><code>a</code>, heap’teki <code>[2, 4, 6]</code> dizisini sahiplenen bir <code>Box</code> değeridir. Şemadaki ok, pointer’ın işaret ettiği veriyi gösterir.</p><p><code>let b = a;</code> bir <strong>move</strong> işlemidir. <code>b</code> sahipliği alır; <code>a</code> eski değerini artık okuyamaz. Dizi heap’te ikinci kez oluşturulmaz.</p><div class="ow-legend"><span><i></i>canlı heap verisi / aktif sahip</span><span><i class="ow-grey"></i>moved / okunamaz</span><span><i class="ow-blue"></i>fonksiyon frame’i</span></div><p class="ow-small" style="margin-top:2mm"><strong>H1</strong> aynı ayrılan alanın kimliğidir; gerçek bir adres değildir. <code>moved</code>, “değer sıfırlandı” veya “null oldu” demek değildir.</p></section></div>
+<div class="ow-section-line"><h2>Oluştur → taşı → bırak</h2><span>Bu üç kare aynı programın farklı anlarıdır.</span></div>
+<div class="ow-stages">
+<figure class="ow-stage"><div class="ow-stage-head"><b class="ow-stage-tag">L1</b>a sahip</div><svg class="ow-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 195" role="img" aria-labelledby="title-box-L1 desc-box-L1">
+    <title id="title-box-L1">box-L1</title><desc id="desc-box-L1">a tek heap dizisinin sahibidir.</desc>
+    <defs><marker id="arrow-box-L1" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7 Z" fill="#14796d"/></marker></defs><text x="9" y="18" class="label" text-anchor="start">STACK</text><text x="214" y="18" class="label" text-anchor="start">HEAP</text><rect x="9" y="44" width="152" height="51" rx="2" fill="#f5f8fd" stroke="#b8c9df" stroke-width="1"/><rect x="9" y="44" width="152" height="22" rx="2" fill="#e8f0fc" stroke="#b8c9df" stroke-width="1"/><text x="17" y="59" class="frame-title" text-anchor="start">main</text><rect x="15" y="69" width="140" height="21" rx="2" fill="#fff" stroke="#d8e0ea" stroke-width="1"/><text x="21" y="83" class="mono" text-anchor="start">a</text><text x="149" y="83" class="mono" text-anchor="end"></text><text x="214" y="64" class="live" text-anchor="start">H1 · [i32; 3]</text><rect x="214" y="76" width="30" height="30" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="229" y="96" class="mono" text-anchor="middle">2</text><text x="229" y="120" class="small muted" text-anchor="middle">0</text><rect x="244" y="76" width="30" height="30" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="259" y="96" class="mono" text-anchor="middle">4</text><text x="259" y="120" class="small muted" text-anchor="middle">1</text><rect x="274" y="76" width="30" height="30" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="289" y="96" class="mono" text-anchor="middle">6</text><text x="289" y="120" class="small muted" text-anchor="middle">2</text><text x="214" y="137" class="small muted" text-anchor="start">eleman indeksleri</text><circle cx="145" cy="79" r="3" fill="#14796d"/><path d="M145 79 C178.0 79 178.0 91 211 91" fill="none" stroke="#14796d" stroke-width="1.8" marker-end="url(#arrow-box-L1)"/><text x="12" y="140" class="mono small" text-anchor="start">a: Box&lt;[i32; 3]&gt;</text><text x="12" y="158" class="muted" text-anchor="start">Tek sahip, tek ayrılan alan.</text></svg><figcaption><code>Box::new</code> diziyi heap’te tutar. Aktif sahiplik oku <code>a</code> üzerindedir.</figcaption></figure>
+<figure class="ow-stage"><div class="ow-stage-head"><b class="ow-stage-tag">L2</b>b sahip</div><svg class="ow-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 195" role="img" aria-labelledby="title-box-L2 desc-box-L2">
+    <title id="title-box-L2">box-L2</title><desc id="desc-box-L2">a moved. Aynı main frame içindeki iç blokta b, aynı H1 dizisinin sahibidir.</desc>
+    <defs><marker id="arrow-box-L2" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7 Z" fill="#14796d"/></marker></defs><text x="9" y="18" class="label" text-anchor="start">STACK</text><text x="214" y="18" class="label" text-anchor="start">HEAP</text><rect x="9" y="29" width="152" height="150" rx="2" fill="#f4f7fb" stroke="#b8c9df" stroke-width="1"/><rect x="9" y="29" width="152" height="22" rx="2" fill="#e8f0fc" stroke="#b8c9df" stroke-width="1"/><text x="17" y="44" class="frame-title" text-anchor="start">main</text><rect x="15" y="56" width="140" height="23" rx="2" fill="#eceff3" stroke="#b8c4d6" stroke-width="1" stroke-dasharray="4 3"/><text x="21" y="72" class="mono muted" text-anchor="start">a</text><text x="149" y="72" class="muted" text-anchor="end">moved</text><rect x="16" y="89" width="138" height="78" rx="2" fill="#edf6f1" stroke="#83af9d" stroke-width="1" stroke-dasharray="4 3"/><text x="23" y="105" class="small live" text-anchor="start">iç blok { ... }</text><rect x="22" y="115" width="126" height="24" rx="2" fill="#fff" stroke="#bad2c8" stroke-width="1"/><text x="29" y="132" class="mono" text-anchor="start">b</text><text x="214" y="64" class="live" text-anchor="start">H1 · [i32; 3]</text><rect x="214" y="76" width="30" height="30" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="229" y="96" class="mono" text-anchor="middle">2</text><text x="229" y="120" class="small muted" text-anchor="middle">0</text><rect x="244" y="76" width="30" height="30" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="259" y="96" class="mono" text-anchor="middle">4</text><text x="259" y="120" class="small muted" text-anchor="middle">1</text><rect x="274" y="76" width="30" height="30" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="289" y="96" class="mono" text-anchor="middle">6</text><text x="289" y="120" class="small muted" text-anchor="middle">2</text><text x="214" y="137" class="small muted" text-anchor="start">eleman indeksleri</text><circle cx="140" cy="127" r="3" fill="#14796d"/><path d="M140 127 C175.5 127 175.5 91 211 91" fill="none" stroke="#14796d" stroke-width="1.8" marker-end="url(#arrow-box-L2)"/><text x="23" y="155" class="small live" text-anchor="start">yeni fonksiyon frame’i değil</text></svg><figcaption>İç blok, <code>main</code> içinde bir kapsamdır. Yeni fonksiyon frame’i oluşturmaz.</figcaption></figure>
+<figure class="ow-stage"><div class="ow-stage-head"><b class="ow-stage-tag">L3</b>Sahip kapsamdan çıktı</div><svg class="ow-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 195" role="img" aria-labelledby="title-box-L3 desc-box-L3">
+    <title id="title-box-L3">box-L3</title><desc id="desc-box-L3">İç blok b değerini drop etti. H1 serbest bırakıldı. a moved olarak kaldı; ikinci kez drop etmez.</desc>
+    <defs><marker id="arrow-box-L3" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7 Z" fill="#14796d"/></marker></defs><text x="9" y="18" class="label" text-anchor="start">STACK</text><text x="214" y="18" class="label" text-anchor="start">HEAP</text><rect x="9" y="43" width="152" height="51" rx="2" fill="#f5f8fd" stroke="#b8c9df" stroke-width="1"/><rect x="9" y="43" width="152" height="22" rx="2" fill="#e8f0fc" stroke="#b8c9df" stroke-width="1"/><text x="17" y="58" class="frame-title" text-anchor="start">main</text><rect x="15" y="68" width="140" height="21" rx="2" fill="#eceff3" stroke="#d8e0ea" stroke-width="1" stroke-dasharray="4 3"/><text x="21" y="82" class="mono muted" text-anchor="start">a</text><text x="149" y="82" class="mono muted" text-anchor="end">moved</text><rect x="15" y="112" width="140" height="49" rx="2" fill="#fafbfd" stroke="#c8cfdb" stroke-width="1" stroke-dasharray="4 3"/><text x="85" y="132" class="muted" text-anchor="middle">iç blok sona erdi</text><text x="85" y="147" class="small muted" text-anchor="middle">b artık kapsamda değil</text><rect x="212" y="64" width="94" height="65" rx="2" fill="#fceff4" stroke="#bd6c85" stroke-width="1" stroke-dasharray="4 3"/><text x="259" y="88" class="dead mono" text-anchor="middle">H1</text><text x="259" y="106" class="dead small" text-anchor="middle">serbest bırakıldı</text></svg><figcaption><code>b</code> drop edilir; H1 bırakılır. Taşınmış <code>a</code>, H1’i tekrar bırakmaz.</figcaption></figure>
+</div>
+<div class="ow-bottom">
+<section class="ow-note-panel ow-rose"><h3>Derlenmez / E0382</h3><pre data-rust="compile-fail" data-error="E0382"><code><span class="kw">let</span> a = <span class="ty">Box</span>::new([<span class="num">2</span>, <span class="num">4</span>, <span class="num">6</span>]);
+<span class="kw">let</span> b = a;
+println!(<span class="str">&quot;{}&quot;</span>, a[<span class="num">0</span>]); <span class="comment">// ERROR: moved</span></code></pre><p class="ow-small" style="margin-top:1.5mm">H1 hâlâ <code>b</code> tarafından sahiplenilse de <code>a</code> üzerinden okuma reddedilir.</p></section>
+<section class="ow-note-panel "><h3>Bellek neden yalnızca bir kez bırakılır?</h3><p>Normal kapsam çıkışında <strong>mevcut sahibin</strong> değeri bırakılır. Böylece aynı alanın iki kez serbest bırakılması ve bırakılmış veriye erişim engellenir.</p><p class="ow-small" style="margin-top:2mm"><code>drop(b)</code> de Box’ın sahipliğini alıp erken bırakabilir. Move, kaynak yönetimini aktarır; heap verisini taşıması veya her zaman sıfır byte kopyalaması gerekmez.</p></section>
+</div></div>
+<footer class="footer"><span><strong>RUST / 04</strong> &nbsp; Ownership 2/3</span><span>Şemalar kavramsaldır. Frame’ler fiziksel register/stack yerleşimi garantisi vermez.</span><a href="https://rust-book.cs.brown.edu/ch04-01-what-is-ownership.html#collections-use-boxes">Brown · What Is Ownership?</a></footer></article>
+<article class="sheet ownership-sheet ow-sheet" aria-label="Ownership sayfa 3, String’in yolculuğu">
+<header class="masthead"><div><p class="eyebrow">KİŞİSEL RUST NOTLARI / 05 · OWNERSHIP 3/3</p><h1>Rust <span>/ String’in yolculuğu</span></h1></div><p class="header-note">Çağrı, büyüme ve dönüşte aynı veriyi izle.<br>Brown · 4.1 · Collections Use Boxes dahil</p></header><div class="ow-body">
+<div class="ow-top ow-string-top"><section class="ow-code-panel"><h3>Örnek / first → name → full</h3><pre data-rust="program" data-output="Ada Jr.\n"><code><span class="kw">fn</span> add_suffix(<span class="kw">mut</span> name: <span class="ty">String</span>) -&gt; <span class="ty">String</span> {
+    <span class="comment">// L2: on entry, before push_str</span>
+    name.push_str(<span class="str">&quot; Jr.&quot;</span>); <span class="comment">// L3</span>
+    name
+}
+<span class="kw">fn</span> main() {
+    <span class="kw">let</span> first = <span class="ty">String</span>::from(<span class="str">&quot;Ada&quot;</span>); <span class="comment">// L1</span>
+    <span class="kw">let</span> full = add_suffix(first); <span class="comment">// L4</span>
+    println!(<span class="str">&quot;{full}&quot;</span>);
+}</code></pre></section><section class="ow-read"><h2>String’in üç bilgisi</h2><dl class="ow-defs"><dt><code>ptr</code></dt><dd>UTF-8 tamponunu gösteren pointer.</dd><dt><code>len</code></dt><dd>Kullanılan <strong>byte</strong> sayısı: “Ada” için 3, “Ada Jr.” için 7.</dd><dt><code>capacity</code></dt><dd>Tamponun byte kapasitesi; <code>len</code> değerinden küçük olamaz.</dd></dl><p class="ow-small" style="margin-top:2mm">Şemalarda <code>C</code> ilk kapasite, <code>C′</code> ekleme sonrası kapasitedir. Heap’te yalnızca kullanılan byte’lar çizilir. Alanların fiziksel sırası gösterilmez. <code>L2</code> fonksiyona giriş anıdır.</p><p class="ow-small">“Collections Use Boxes”: <code>String</code> ve <code>Vec</code> heap alanını sahiplenir; doğrudan bir <code>Box&lt;T&gt;</code> alanı kullanmaları gerekmez.</p></section></div>
+<div class="ow-stages ow-string-stages">
+<figure class="ow-stage"><div class="ow-stage-head"><b class="ow-stage-tag">L1</b>main::first sahip</div><svg class="ow-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 120" role="img" aria-labelledby="title-string-L1 desc-string-L1">
+    <title id="title-string-L1">string-L1</title><desc id="desc-string-L1">main first sahibi. Pointer P, byte uzunluğu 3, kapasite C en az 3.</desc>
+    <defs><marker id="arrow-string-L1" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7 Z" fill="#14796d"/></marker></defs><text x="9" y="13" class="label" text-anchor="start">STACK</text><text x="300" y="13" class="label" text-anchor="start">HEAP · UTF-8</text><rect x="9" y="23" width="244" height="70" rx="2" fill="#f4f7fb" stroke="#b8c9df" stroke-width="1"/><rect x="9" y="23" width="244" height="19" rx="2" fill="#e8f0fc" stroke="#b8c9df" stroke-width="1"/><text x="17" y="37" class="frame-title" text-anchor="start">main</text><text x="19" y="66" class="mono" text-anchor="start">first</text><rect x="66" y="50" width="47" height="26" rx="2" fill="#fff" stroke="#c8d6e5" stroke-width="1"/><text x="70" y="60" class="small muted" text-anchor="start">len</text><text x="108" y="72" class="mono" text-anchor="end">3</text><rect x="113" y="50" width="47" height="26" rx="2" fill="#fff" stroke="#c8d6e5" stroke-width="1"/><text x="117" y="60" class="small muted" text-anchor="start">cap</text><text x="155" y="72" class="mono" text-anchor="end">C</text><rect x="160" y="50" width="87" height="26" rx="2" fill="#fff" stroke="#c8d6e5" stroke-width="1"/><text x="164" y="60" class="small muted" text-anchor="start">ptr</text><text x="227" y="72" class="mono" text-anchor="end">P</text><rect x="300" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="311.5" y="62" class="mono" text-anchor="middle">A</text><rect x="323" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="334.5" y="62" class="mono" text-anchor="middle">d</text><rect x="346" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="357.5" y="62" class="mono" text-anchor="middle">a</text><circle cx="239" cy="67" r="3" fill="#14796d"/><path d="M239 67 C268.0 67 268.0 57 297 57" fill="none" stroke="#14796d" stroke-width="1.8" marker-end="url(#arrow-string-L1)"/><text x="300" y="86" class="mono small live" text-anchor="start">len = 3, C ≥ 3</text><text x="300" y="102" class="small muted" text-anchor="start">P: tamponun adresi</text></svg></figure>
+<figure class="ow-stage"><div class="ow-stage-head"><b class="ow-stage-tag">L2</b>add_suffix::name sahip</div><svg class="ow-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 120" role="img" aria-labelledby="title-string-L2 desc-string-L2">
+    <title id="title-string-L2">string-L2</title><desc id="desc-string-L2">Sahiplik name parametresine geçti. first moved. Aynı heap tamponu; full henüz başlatılmadı.</desc>
+    <defs><marker id="arrow-string-L2" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7 Z" fill="#14796d"/></marker></defs><text x="9" y="13" class="label" text-anchor="start">STACK</text><text x="300" y="13" class="label" text-anchor="start">HEAP · UTF-8</text><rect x="9" y="77" width="244" height="39" rx="2" fill="#f3f4f6" stroke="#b8c9df" stroke-width="1"/><text x="17" y="90" class="frame-title" text-anchor="start">main · çağrıyı bekliyor</text><rect x="15" y="94" width="232" height="20" rx="2" fill="#eceff3" stroke="#bcc6d5" stroke-width="1" stroke-dasharray="4 3"/><text x="21" y="108" class="mono muted" text-anchor="start">first</text><text x="241" y="108" class="small muted" text-anchor="end">moved · okunamaz</text><rect x="9" y="21" width="244" height="50" rx="2" fill="#f4f7fb" stroke="#b8c9df" stroke-width="1"/><rect x="9" y="21" width="244" height="18" rx="2" fill="#e8f0fc" stroke="#b8c9df" stroke-width="1"/><text x="17" y="34" class="frame-title" text-anchor="start">add_suffix · aktif</text><text x="19" y="58" class="mono" text-anchor="start">name</text><rect x="66" y="42" width="47" height="26" rx="2" fill="#fff" stroke="#c8d6e5" stroke-width="1"/><text x="70" y="52" class="small muted" text-anchor="start">len</text><text x="108" y="64" class="mono" text-anchor="end">3</text><rect x="113" y="42" width="47" height="26" rx="2" fill="#fff" stroke="#c8d6e5" stroke-width="1"/><text x="117" y="52" class="small muted" text-anchor="start">cap</text><text x="155" y="64" class="mono" text-anchor="end">C</text><rect x="160" y="42" width="87" height="26" rx="2" fill="#fff" stroke="#c8d6e5" stroke-width="1"/><text x="164" y="52" class="small muted" text-anchor="start">ptr</text><text x="227" y="64" class="mono" text-anchor="end">P</text><rect x="300" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="311.5" y="62" class="mono" text-anchor="middle">A</text><rect x="323" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="334.5" y="62" class="mono" text-anchor="middle">d</text><rect x="346" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="357.5" y="62" class="mono" text-anchor="middle">a</text><circle cx="239" cy="59" r="3" fill="#14796d"/><path d="M239 59 C268.0 59 268.0 57 297 57" fill="none" stroke="#14796d" stroke-width="1.8" marker-end="url(#arrow-string-L2)"/><text x="300" y="86" class="mono small live" text-anchor="start">len = 3, C ≥ 3</text><text x="300" y="102" class="small muted" text-anchor="start">P: tamponun adresi</text></svg></figure>
+<figure class="ow-stage"><div class="ow-stage-head"><b class="ow-stage-tag">L3</b>push_str tamamlandı</div><svg class="ow-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 120" role="img" aria-labelledby="title-string-L3 desc-string-L3">
+    <title id="title-string-L3">string-L3</title><desc id="desc-string-L3">push_str sonrası name sahibi. Uzunluk 7, kapasite C′ en az 7; kapasite yeterliyse değişmez. Adres değişmiş olabilir.</desc>
+    <defs><marker id="arrow-string-L3" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7 Z" fill="#14796d"/></marker></defs><text x="9" y="13" class="label" text-anchor="start">STACK</text><text x="300" y="13" class="label" text-anchor="start">HEAP · UTF-8</text><rect x="9" y="77" width="244" height="39" rx="2" fill="#f3f4f6" stroke="#b8c9df" stroke-width="1"/><text x="17" y="90" class="frame-title" text-anchor="start">main · çağrıyı bekliyor</text><rect x="15" y="94" width="232" height="20" rx="2" fill="#eceff3" stroke="#bcc6d5" stroke-width="1" stroke-dasharray="4 3"/><text x="21" y="108" class="mono muted" text-anchor="start">first</text><text x="241" y="108" class="small muted" text-anchor="end">moved · okunamaz</text><rect x="9" y="21" width="244" height="50" rx="2" fill="#f4f7fb" stroke="#b8c9df" stroke-width="1"/><rect x="9" y="21" width="244" height="18" rx="2" fill="#e8f0fc" stroke="#b8c9df" stroke-width="1"/><text x="17" y="34" class="frame-title" text-anchor="start">add_suffix · aktif</text><text x="19" y="58" class="mono" text-anchor="start">name</text><rect x="66" y="42" width="47" height="26" rx="2" fill="#fff" stroke="#c8d6e5" stroke-width="1"/><text x="70" y="52" class="small muted" text-anchor="start">len</text><text x="108" y="64" class="mono" text-anchor="end">7</text><rect x="113" y="42" width="47" height="26" rx="2" fill="#fff" stroke="#c8d6e5" stroke-width="1"/><text x="117" y="52" class="small muted" text-anchor="start">cap</text><text x="155" y="64" class="mono" text-anchor="end">C′</text><rect x="160" y="42" width="87" height="26" rx="2" fill="#fff" stroke="#c8d6e5" stroke-width="1"/><text x="164" y="52" class="small muted" text-anchor="start">ptr</text><text x="227" y="64" class="mono" text-anchor="end">P′</text><rect x="300" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="311.5" y="62" class="mono" text-anchor="middle">A</text><rect x="323" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="334.5" y="62" class="mono" text-anchor="middle">d</text><rect x="346" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="357.5" y="62" class="mono" text-anchor="middle">a</text><rect x="369" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="380.5" y="62" class="mono" text-anchor="middle">␠</text><rect x="392" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="403.5" y="62" class="mono" text-anchor="middle">J</text><rect x="415" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="426.5" y="62" class="mono" text-anchor="middle">r</text><rect x="438" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="449.5" y="62" class="mono" text-anchor="middle">.</text><circle cx="239" cy="59" r="3" fill="#14796d"/><path d="M239 59 C268.0 59 268.0 57 297 57" fill="none" stroke="#14796d" stroke-width="1.8" marker-end="url(#arrow-string-L3)"/><text x="300" y="86" class="mono small live" text-anchor="start">len = 7, C′ ≥ 7</text><text x="300" y="102" class="small muted" text-anchor="start">P′, P ile aynı adres olabilir.</text></svg></figure>
+<figure class="ow-stage"><div class="ow-stage-head"><b class="ow-stage-tag">L4</b>main::full sahip</div><svg class="ow-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 120" role="img" aria-labelledby="title-string-L4 desc-string-L4">
+    <title id="title-string-L4">string-L4</title><desc id="desc-string-L4">Fonksiyon döndü. full artık tamponun sahibidir. add_suffix frame’i kaldırılmıştır.</desc>
+    <defs><marker id="arrow-string-L4" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7 Z" fill="#14796d"/></marker></defs><text x="9" y="13" class="label" text-anchor="start">STACK</text><text x="300" y="13" class="label" text-anchor="start">HEAP · UTF-8</text><rect x="9" y="22" width="244" height="87" rx="2" fill="#f4f7fb" stroke="#b8c9df" stroke-width="1"/><rect x="9" y="22" width="244" height="19" rx="2" fill="#e8f0fc" stroke="#b8c9df" stroke-width="1"/><text x="17" y="36" class="frame-title" text-anchor="start">main · add_suffix döndü</text><rect x="15" y="46" width="232" height="20" rx="2" fill="#eceff3" stroke="#bcc6d5" stroke-width="1" stroke-dasharray="4 3"/><text x="21" y="60" class="mono muted" text-anchor="start">first</text><text x="241" y="60" class="small muted" text-anchor="end">moved · okunamaz</text><text x="19" y="89" class="mono" text-anchor="start">full</text><rect x="66" y="73" width="47" height="26" rx="2" fill="#fff" stroke="#c8d6e5" stroke-width="1"/><text x="70" y="83" class="small muted" text-anchor="start">len</text><text x="108" y="95" class="mono" text-anchor="end">7</text><rect x="113" y="73" width="47" height="26" rx="2" fill="#fff" stroke="#c8d6e5" stroke-width="1"/><text x="117" y="83" class="small muted" text-anchor="start">cap</text><text x="155" y="95" class="mono" text-anchor="end">C′</text><rect x="160" y="73" width="87" height="26" rx="2" fill="#fff" stroke="#c8d6e5" stroke-width="1"/><text x="164" y="83" class="small muted" text-anchor="start">ptr</text><text x="227" y="95" class="mono" text-anchor="end">P′</text><rect x="300" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="311.5" y="62" class="mono" text-anchor="middle">A</text><rect x="323" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="334.5" y="62" class="mono" text-anchor="middle">d</text><rect x="346" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="357.5" y="62" class="mono" text-anchor="middle">a</text><rect x="369" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="380.5" y="62" class="mono" text-anchor="middle">␠</text><rect x="392" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="403.5" y="62" class="mono" text-anchor="middle">J</text><rect x="415" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="426.5" y="62" class="mono" text-anchor="middle">r</text><rect x="438" y="44" width="23" height="26" rx="2" fill="#e1f2eb" stroke="#75aa98" stroke-width="1"/><text x="449.5" y="62" class="mono" text-anchor="middle">.</text><circle cx="239" cy="90" r="3" fill="#14796d"/><path d="M239 90 C268.0 90 268.0 57 297 57" fill="none" stroke="#14796d" stroke-width="1.8" marker-end="url(#arrow-string-L4)"/><text x="300" y="86" class="mono small live" text-anchor="start">len = 7, C′ ≥ 7</text><text x="300" y="102" class="small muted" text-anchor="start">P′, P ile aynı adres olabilir.</text></svg></figure>
+</div>
+<div class="ow-string-bottom">
+<section class="ow-note-panel "><h3>Kapasite yeterliyse / C ≥ 7</h3><p>Yeniden ayırma yapılmaz.<br><code>P′ = P</code>, <code>C′ = C</code>.<br>Yalnızca kullanılan uzunluk 7 olur.</p></section>
+<section class="ow-note-panel ow-amber"><h3>Kapasite yetmezse / C &lt; 7</h3><p>Tampon büyütülür; <code>C′ ≥ 7</code>.<br>Adres değişebilir, aynı da kalabilir. Belirli bir büyüme miktarı garanti edilmez.</p></section>
+<section class="ow-note-panel ow-rose"><h3>Dönüş, veriyi bırakmaz</h3><p>L4’te fonksiyon frame’i kalktı; döndürülen String’in sahibi <code>full</code> oldu. Sonrasında normal kapsam çıkışında <code>full</code> bu tamponu bırakır.</p></section>
+</div>
+<p class="ow-stage-source"><code>first</code>, L2’den itibaren moved durumundadır; gri satır okunabilir bir eski pointer göstermez. <code>full</code>, ancak dönüş tamamlanınca başlatılır. Diyagramda boşluk <code>␠</code> ile gösterilir.</p></div>
+<footer class="footer"><span><strong>RUST / 05</strong> &nbsp; Ownership 3/3</span><span>Şemalar kavramsaldır. Frame’ler fiziksel register/stack yerleşimi garantisi vermez.</span><a href="https://rust-book.cs.brown.edu/ch04-01-what-is-ownership.html#collections-use-boxes">Brown · What Is Ownership?</a></footer></article>
+  </main>
+  <details class="references">
+    <summary>Kapsam ve doğruluk kaynakları</summary>
+
+    <p>Ownership kapsamı: <a href="https://rust-book.cs.brown.edu/ch04-01-what-is-ownership.html#collections-use-boxes">Brown 4.1, sayfanın başlangıcından “Collections Use Boxes” başlığı dahil</a>. Teknik netleştirmeler: <a href="https://doc.rust-lang.org/std/boxed/index.html">Box</a> · <a href="https://doc.rust-lang.org/std/marker/trait.Copy.html">Copy ve move</a> · <a href="https://doc.rust-lang.org/std/mem/fn.drop.html">drop</a> · <a href="https://doc.rust-lang.org/reference/destructors.html#drop-scopes">Drop kapsamları</a> · <a href="https://doc.rust-lang.org/std/string/struct.String.html#representation">String gösterimi ve kapasite</a>. Şemalar kavramsaldır; alan sırası veya fiziksel stack yerleşimi garantisi göstermez.</p>
+
+    <p><a href="rust-a4.html">Önceki konularla birlikte beş sayfalık seti aç</a>. Başlıklar ve açıklamalar Türkçe, kodlar İngilizcedir. “Derlenmez” işaretli örnek özellikle hatalıdır.</p>
+  </details>
+</body>
+</html>
